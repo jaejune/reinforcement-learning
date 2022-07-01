@@ -26,11 +26,11 @@ class DQN:
         # Hyperparameters
         self.memory = deque(maxlen=2500)
         self.learning_rate=0.001
-        self.epsilon=1
-        self.max_eps=1
-        self.min_eps=0.01
+        self.epsilon = 1
+        self.max_eps = 1
+        self.min_eps = 0.01
         self.eps_decay = 0.001/3
-        self.gamma=0.9
+        self.gamma = 0.9
         self.state_size= state_size
         self.action_size= action_size
         self.epsilon_lst=[]

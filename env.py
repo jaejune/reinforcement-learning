@@ -5,6 +5,8 @@ from numpy.core.fromnumeric import reshape
 from io import StringIO
 import time
 from terminaltables import SingleTable
+import pandas as pd
+import os 
 
 # 액션 값
 LEFT = 0
@@ -13,55 +15,42 @@ RIGHT = 2
 UP = 3
 
 # 목표지점 도달 시 받는 리워드 값
-GOAL = 1000
+GOAL = 1
 
 # 장애물에 갔을 시 받는 리워드 값
-DEAD = -100
+DEAD = -1
 
 # S 시작점
 # H 장애물
 # G 목표지점
-MAPS = {
-    "6x6": [
-        "H H H H H H",
-        "H S -5 -1 -5 H",
-        "H -1 -1 H -1 H",
-        "H -3 H -1 1 H",
-        "H 2 -1 -1 -1 H",
-        "H H H G H H",
-        ],
-    "4x4": [
-        "H H H H H",
-        "H S -1 -1 H",
-        "H -1 -1 -1 H",
-        "H -1 -1 -1 H",
-        "H H G H H",
-    ]
-}
 
 class CustomEnv(Env):
     def __init__(self, map_name):
-        map = MAPS[map_name]
-
-        self.map = map = np.array([i.split(' ') for i in map])
+        path = os.getcwd()
+        self.map = map = pd.read_excel(f'{path}/{map_name}.xlsx', header=None).to_numpy()
 
         self.ncol, self.nrow = nrow, ncol = self.map.shape
         
         actions = 4
 
+        self.step_count = 0
+
         self.observation_space = Box(low=np.array([-np.inf]), high=np.array([np.inf]))
 
-        self.state_size = states = nrow * ncol
+        self.prob = self.state_size = states = nrow * ncol
 
         self.action_space = Discrete(actions)
 
         self.observation = observation = {state: {action: [] for action in range(actions)} for state in range(states)}        
 
+        self.hall_coordis = list()
+
+        self.goal_coordi = list()
+
         def to_s(row, col):
             return row * ncol + col
 
         def inc(row, col, a):
-
             if a == LEFT:
                 col = max(col - 1, 0)
     
@@ -79,19 +68,20 @@ class CustomEnv(Env):
         def get_next_state(row, col, action):
             newrow, newcol = inc(row, col, action)
             newstate = to_s(newrow, newcol)
-            newletter = map[newrow, newcol]
-            done = newletter in 'GH'
+            new_letter = map[newrow, newcol]
+            
+            done = str(new_letter) in 'G'
 
-            if newletter == 'G':
+            if new_letter == 'G':
                 reward = GOAL
-            elif newletter == 'H':
+            elif new_letter == 'H':
                 reward = DEAD
-            elif newletter == 'S':
+            elif new_letter == 'S':
                 reward = 0
             else:
-                reward = int(newletter)
+                reward = int(new_letter)
 
-            return newstate, reward, done
+            return newstate, reward, done, new_letter
             
 
         for row in range(nrow):
@@ -102,23 +92,45 @@ class CustomEnv(Env):
                     letter = map[row][col]
                     if letter == 'S':
                         self.state = self.start = state
-                    if letter == 'G':
-                        info.append((state, GOAL, True, letter))
+
                     elif letter == 'H':
-                        info.append((state, DEAD, True, letter))
-                    else:
-                        newstate, reward, done = get_next_state(row, col, action)
-                        info.append((newstate, reward, done, letter))
+                        self.hall_coordis.append([row, col])
+
+                    elif letter == 'G':
+                        self.goal_coordi.append([row, col])
+                    
+                    newstate, reward, done, newletter = get_next_state(row, col, action)
+                    if newletter == 'H':
+                        info.append((state, reward, done, newletter))
+
+                    info.append((newstate, reward, done, newletter))
         
-
-
     def step(self, action):
         self.state, reward, done, info = self.observation[self.state][action][0]
+
+        if reward > 0 and self.state not in self.good_way_list:
+            reward += self.prob ** 2
+            self.good_way_list.append(self.state)
+            self.prob -= 1
+
+        elif reward < 0 and self.state not in self.good_way_list:
+            reward -= self.prob ** 2
+            self.prob -= 1
+
+        else:
+            reward -= self.step_count ** 2
+            self.step_count += 1
+
+
         self.lastaction = action
         return self.state, reward, done, info
 
     def reset(self):
+        self.good_way_list = list()
+        self.step_count = 0
         self.state = self.start
+        self.prob = self.state_size
+        
         self.lastaction = None
         return self.state
 
@@ -129,6 +141,10 @@ class CustomEnv(Env):
             map = self.map.tolist()
 
             map[row][col] = utils.colorize(map[row][col], 'red', highlight=True)
+            for rowCol in self.hall_coordis:
+                map[rowCol[0]][rowCol[1]] = utils.colorize(map[rowCol[0]][rowCol[1]], 'blue', highlight=True)
+            map[self.goal_coordi[0][0]][self.goal_coordi[0][1]] = utils.colorize( map[self.goal_coordi[0][0]][self.goal_coordi[0][1]], 'yellow', highlight=True)
+
             table_instance = SingleTable(map)
             table_instance.inner_heading_row_border = False
             table_instance.inner_row_border = True
@@ -140,7 +156,7 @@ class CustomEnv(Env):
                 print("\n")
             print(table_instance.table)
             # for visualize
-            time.sleep(0.2)
+            time.sleep(0.1)
 
     
         

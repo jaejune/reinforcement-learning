@@ -18,11 +18,11 @@ class QLearning:
         # Hyperparameters
         self.lr = 1.0
         self.lrMin = 0.001
-        self.lrDecay = 0.9999
+        self.lrDecay = 0.999
         self.gamma = 1.0
         self.epsilon = 1.0
         self.epsilonMin = 0.001
-        self.epsilonDecay = 0.97
+        self.epsilonDecay = 0.999
 
     def learn(self):
         reward_list = list()
@@ -31,7 +31,7 @@ class QLearning:
             done = False
             score = 0
             while not done:
-                self.env.render(self.render)
+                self.env.render(self.render) 
                 if np.random.random() < self.epsilon:
                     action = np.random.randint(self.action_size)
                 else:
@@ -42,14 +42,11 @@ class QLearning:
                 self.Q[state][action] = self.Q[state][action] + self.lr * (score + self.gamma * np.max(self.Q[new_state]) - self.Q[state][action])
                 state = new_state
 
-                if self.lr > self.lrMin:
-                    self.lr *= self.lrDecay
-
-                if self.epsilon > self.epsilonMin:
-                    self.epsilon *= self.epsilonDecay
-
-                if done:
-                    break
+            if self.lr > self.lrMin:
+                self.lr *= self.lrDecay
+                
+            if self.epsilon > self.epsilonMin:
+                self.epsilon *= self.epsilonDecay
                 
             print(f'Episode: {episode+1:4}/{self.episodes} Reward: {score:4}')
 

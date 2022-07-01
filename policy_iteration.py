@@ -12,11 +12,12 @@ class PolicyIteration:
         self.episodes = episodes
         self.render = render
         self.envaluations = envaluations
+
         # Hyperparameters
         self.gamma = 0.99
-        self.trial = 100
+        self.trial = 500
         self.max_itr = 30
-        self.sample = 1e5
+        self.sample = 1e6
 
     def policy_evaluation(self, policy, value, trans_prob, reward):
         counter = 0
@@ -74,14 +75,15 @@ class PolicyIteration:
 
             if stable and stop_if_stable:
                 print("policy is stable at {} iteration".format(counter))
+                break
+
         return policy, reward_list
 
 
     def test_policy(self, policy):
-        done = False
         state = self.env.reset()
         score = 0
-        while not done:
+        for _ in range(self.trial):
             self.env.render(render=self.render)
             action = policy[state]
             
@@ -114,9 +116,6 @@ class PolicyIteration:
 
                 state = new_state
                 counter += 1
-                
-                if done:
-                    break
                 
         # normalization
         for i in range(trans_prob.shape[0]):
